@@ -9,6 +9,9 @@ async function bootstrap() {
       whitelist: true, // Unwanted properties are removed from a dto
       forbidNonWhitelisted: true, // Error 400 if a unwanted property is detected
       transform: true, // Transform body's into a instance of the DTO. Defaults to just matching the form, but not type
+      transformOptions: {
+        enableImplicitConversion: true, // DTO data type will transform query param dtos
+      },
     }),
   );
   await app.listen(3000);

@@ -172,3 +172,9 @@ src/name/name.controller.spec.ts
 ### End-to-end
 
 test/name.e2e-spec.ts
+
+## Misc IYK TODO Notes
+
+If app.module.ts set "autoLoadEntities: true", it does NOT need to import each entity. Only the submodule needs to import
+
+If app.module.ts set "synchronize: true", your DB does NOT need to be setup. Postgres tables will be instantiated or updated based on the Entities descriptions. This is a development only feature
