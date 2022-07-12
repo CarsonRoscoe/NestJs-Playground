@@ -299,6 +299,69 @@ If you have a custom provider, scope is declared as another variable:
 }
 ```
 
+## Validating ENV Vars
+
+Nest can check the validity of a loaded env var
+
+By default, everything in the .env file is optional
+
+To add required parameters, type-safety, set defaults or more, update the ConfigModule in app.module.ts to set a Joi object in validateSchema.
+
+```ts
+ConfigModule.forRoot({
+  validationSchema: Joi.object({
+    DATABASE_HOST: Joi.required(),
+    DATABASE_PORT: Joi.number().default(5432),
+  }),
+}),
+```
+
+We can take it a step further and create a object that loads our env variables. This gives us full control over using any logic to control it.
+
+```ts
+// In its own app.config.ts class
+export default () => ({
+  environment: process.env.NODE_ENV || 'development',
+  database: {
+    host: process.env.DATABASE_HOST,
+    port: parseInt(process.env.DATABASE_PORT, 10) || 5432,
+  },
+});
+
+// In app.module.ts
+ConfigModule.forRoot({
+  load: [appConfig]
+}),
+```
+
+Using the 2nd approach, when we use the ConfigService to get a env var, our key becomes a path to the variable. Such as configService.get("database.port")
+
+We can take THAT a step further and create objects that represent the config for true type safety. First we make config files that are module scoped:
+
+```ts
+import { registerAs } from '@nestjs/config';
+
+export default registerAs('database', () => ({
+  environment: process.env.NODE_ENV || 'development',
+  database: {
+    host: process.env.DATABASE_HOST,
+    port: parseInt(process.env.DATABASE_PORT, 10) || 5432,
+  },
+}));
+```
+
+Import that into our module's imports:
+
+```ts
+ConfigModule.forFeature(databaseConfig);
+```
+
+We can then inject that into Services to get the actual object loaded with our env vars:
+
+```ts
+@Inject(databaseConfig.KEY) private readonly config: ConfigType<typeof databaseConfig>
+```
+
 ## Testing
 
 There are three levels of testing:
