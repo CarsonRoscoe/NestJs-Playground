@@ -6,14 +6,11 @@ Controllers should encompass one thing
 
 Sibling endpoints (GET/POST/PATCH/DELETE with identical paths) can exist, and must represent the fetching or manipulation of the same concept
 
-A lack of ID specifying that sibling endpoint means all
+A lack of ID specifying that sibling endpoint generally means all, except for Post, which means the id does not exist as you're creating it
 
 ```ts
 @Get()
 findAll() {}
-
-@Post()
-addMany(@Body body) {}
 
 @Patch()
 updateMany(@Body body) {}
@@ -21,16 +18,16 @@ updateMany(@Body body) {}
 @Delete()
 deleteMany(@Body body) {}
 
-@Get(':id)
+@Get(':id')
 findOne(@Param('id') id: string) {}
 
-@Post(':id)
-addOne(@Param('id') id: @Body body) {}
+@Post()
+addOne(@@Body body) {}
 
-@Patch(':id)
+@Patch(':id')
 updateOne(@Param('id') id: @Body body) {}
 
-@Delete(':id)
+@Delete(':id')
 deleteOne(@Param('id') id: string) {}
 ```
 
@@ -70,6 +67,24 @@ updateContainer(@Param('id') id: string, @Body() body, @Query() query) {
 Controllers are the endpoint, where user requests and responses are handled
 
 Services are the meat of the logic, where any interaction with data sources are handled
+
+You can generate a controller via the CLI:
+
+```
+nest g controller name
+```
+
+as well as a Service via
+
+```
+nest g service name
+```
+
+which both belong in the module, you generate via
+
+```
+nest g module name
+```
 
 ## Errors
 
@@ -154,6 +169,133 @@ This is useful to patch/update dto's to reduce code duplication. This will inher
 export class UpdateNameDto extends PartialType(CreateNameDto) {
   @IsNumber()
   id: number;
+}
+```
+
+## Custom Dependency Injecting
+
+The dependency injection system of Nest supports injecting anything through a modules provider.
+
+### useValue
+
+This feature is frequently used during testing, where a provider in it's lowest level is the following object:
+
+```json
+{
+ provider: ClassName,
+ useValue: new ClassName())
+}
+```
+
+This can be extended to not just inject classes, but raw data. For example, if we wanted to make "ChainIds" an injectable thing concept, so our prod/dev/test environments can rely on different chains, we can inject by declaring the following provider in our modules:
+
+```json
+{
+  "provider": "CHAINS",
+  "useValue": [1, 10, 137]
+}
+```
+
+with the Service now injecting via adding to the constructor
+
+```ts
+@Inject("CHAINS") chains: nuber[],
+```
+
+### useClass
+
+If we want to inject a new instance of a class, we can useClass
+
+### useFactory
+
+To create providers dynamically, we can use the useFactory function. We use this over useClass or useValue when the thing we're instantiating has dependencies of its own, as useFactory can itself do dependency injection.
+
+```ts
+{
+  provide: "CHAINS",
+  useFactory: (chainFactory: ChainFactory) => chainFactory.getSupportedChains(process.env.NODE_ENV),
+  inject: [ChainFactory]
+},
+```
+
+## Asynchronous Providers
+
+Sometimes we don't want everything to be injected at once. For example, we might want a service to not be callable until a database connection has been established, and don't want that controller to be callable until that service is ready.
+
+```ts
+{
+  provide: "CHAINS",
+  useFactory: async (chainFactory: ChainFactory) => {
+    await chainFactory.getSupportedChains(process.env.NODE_ENV)
+  },
+  inject: [ChainFactory]
+},
+```
+
+And that's it! We re-use the useFactory pattern, and just make the function async. Anything depending on "CHAINS" will not be instantiated until this completes.
+
+That means, if ChainFactory had a db connection to determine this, nothing would be setup until that db connection was established. We also could just wait on ChainFactory/the db connection being completed.
+
+## Dynamic Modules
+
+Unused in the application, but see src/database/database.module.ts for an example of a dynamic module.
+
+Essentially this is a factory for creating dynamic modules where the caller can determine the inputs. In the calling modules, you just have to say:
+
+```ts
+@Module({
+  imports: [
+    DatabaseModule.register({
+      //args
+    }),
+  ],
+  providers: [SomeController],
+})
+export class SomeModule {}
+```
+
+## Providers Scope
+
+By default, every Provider (service) is a singleton. If we want to change that, we can pass options into the @Injectable attribute
+
+```ts
+@Injectable({ scope: Scope.TRANSIENT })
+export class SomeService {}
+```
+
+#### Scopes
+
+**Singleton (Scope.DEFAULT)**
+One is created for the entire application
+
+Always recommended for performance.
+
+**Transient (Scope.TRANSIENT)**
+One is created per consumer
+
+**Request (Scope.REQUEST)**
+One is created per request and immediately garbage collected after
+
+_NOTE:_ Scope bubbles up. This means if a Controller depends on a Service whose scope is REQUEST, a new controller will also be created per request.
+
+Also, REQUEST scoped providers/controllers have access to the original Request object. This is useful if you want access to header specific information, such as cookies, headers, IP, etc.
+
+```ts
+@Inject(REQUEST) private readonly request: Request
+```
+
+Request scoped providers will have an impact on performance. This may slow down response time.
+
+#### Custom Providers
+
+If you have a custom provider, scope is declared as another variable:
+
+```ts
+{
+  provide: "CHAINS",
+  useFactory: (chainFactory: ChainFactory) => chainFactory.getSupportedChains(process.env.NODE_ENV),
+  inject: [ChainFactory]
+  scope: Scope.REQUEST
 }
 ```
 

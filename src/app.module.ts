@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { MiscController } from './misc/misc.controller';
 import { CoffeesModule } from './coffees/coffees.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       autoLoadEntities: true,
       synchronize: true, // Disable in prod. Creates the tables & updates columns on-run if entity changes
     }),
+    DatabaseModule,
   ],
   controllers: [AppController, MiscController],
   providers: [AppService],
