@@ -6,6 +6,7 @@ import { CoffeesModule } from './coffees/coffees.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DatabaseModule } from './database/database.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { CommonModule } from './common/common.module';
 import * as Joi from '@hapi/joi';
 import appConfig from './config/app.config';
 
@@ -30,6 +31,7 @@ import appConfig from './config/app.config';
       inject: [ConfigService],
     }),
     DatabaseModule,
+    CommonModule,
   ],
   controllers: [AppController, MiscController],
   providers: [AppService],

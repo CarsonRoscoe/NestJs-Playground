@@ -102,6 +102,8 @@ throw new HttpException(`Phygital not found`, HttpStatus.NOT_FOUND);
 
 Services should be throwing these errors if appropriate, rather than Controllers. This is because the Service knows WHAT went wrong and can better determine what error message to handle. If the service returns default data, the controller will not be able to discern genuine default/empty data cases from handled cases.
 
+See below for how we can use Exception Filters to even further improve error handling
+
 ## Data Transfer Objects
 
 Data transfer objects (dto) are a way to make sure the request payload has the form needed before making a request.
@@ -362,6 +364,47 @@ We can then inject that into Services to get the actual object loaded with our e
 @Inject(databaseConfig.KEY) private readonly config: ConfigType<typeof databaseConfig>
 ```
 
+## Building Blocks
+
+There are four types of building blocks: Exception Filters, Pipes, Guards and Interceptors.
+
+Each of these can be global scoped in main.ts via attaching to the app via app.useX(new Thing())
+Each can be class scoped by using the @UseX attribute on a controller/service (@UsePipe, @UseGuard, etc)
+Each can be method scoped by using the @UseX attribute on a controller/server
+Pipes can be param scoped, added to route parameters, by adding it to the @Body attribute via @Body(ValidationPipe)
+
+## Exception Filters
+
+The catch exception filters handles unhandled exceptions. By default, unhandled exceptions are displayed as a Error 500 with a default message. This is why we usually throw a HttpException. However, if something unexpected crashes, ExceptionFilters allow us control.
+
+We can generate a filter via running the CLI:
+
+```
+nest generate filter common/filters/http-exception
+```
+
+In our filters, we can do things such as use a logging service to track errors, use an analytics API, or transform the response to include extra data
+
+See src/common/filters/ for examples
+
+## Pipes
+
+## Guards
+
+Guards can be used to validate things such as API keys, whether routes are public/private, etc.
+
+We can generate a guard via running the CLI:
+
+```
+nest g guard common/guards/api-key
+```
+
+These guards can be dependency injected, and return true or false on whether requests may be evaluated.
+
+See src/common/guards/api-key.guard.ts to see an example of guarding against requests that are to a private request without the apiKey
+
+## Interceptors
+
 ## Testing
 
 There are three levels of testing:
@@ -374,6 +417,14 @@ src/name/name.service.spec.ts
 
 src/name/name.controller.spec.ts
 
+### Filters
+
+src/common/filters/name.filter.spec.ts
+
+### Guards
+
+src/common/guards/name.guard.spec.ts
+
 ### End-to-end
 
 test/name.e2e-spec.ts
@@ -383,3 +434,7 @@ test/name.e2e-spec.ts
 If app.module.ts set "autoLoadEntities: true", it does NOT need to import each entity. Only the submodule needs to import
 
 If app.module.ts set "synchronize: true", your DB does NOT need to be setup. Postgres tables will be instantiated or updated based on the Entities descriptions. This is a development only feature
+
+Using ExceptionFilters, we can enhance our error handling to catch type Error 500's or raw strings to have better error handling
+
+Using guards we can create a private API key for non-public entrypoints. We can create a custom property @Public to attach to public Controller methods, to bypass this key requirement. This is similar to how Ryan did the guard for Jwt tokens, but something we could expand for private calls such as eth-contract task deployments or a more expansive IYK only dashboard
