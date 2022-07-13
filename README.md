@@ -278,7 +278,7 @@ One is created per consumer
 **Request (Scope.REQUEST)**
 One is created per request and immediately garbage collected after
 
-_NOTE:_ Scope bubbles up. This means if a Controller depends on a Service whose scope is REQUEST, a new controller will also be created per request.
+_NOTE:_ Scope bubbles up. This means if a Controller depends on a Service whose scope is REQUEST, a new controller will also be created per request. Not only that, but any Guards, Intereceptors, Pipes or Filters used will also need to be recreated.
 
 Also, REQUEST scoped providers/controllers have access to the original Request object. This is useful if you want access to header specific information, such as cookies, headers, IP, etc.
 
@@ -373,9 +373,19 @@ Each can be class scoped by using the @UseX attribute on a controller/service (@
 Each can be method scoped by using the @UseX attribute on a controller/server
 Pipes can be param scoped, added to route parameters, by adding it to the @Body attribute via @Body(ValidationPipe)
 
+## Metadata
+
+Extra metadata can be set via the @SetMetadata decorator or by creating a custom decorator which implements SetMetadata.
+
+Metadata can be pulled in through building blocks during processing to get extra information, such as in our api-key Guard example below, where we use it to mark functions as @Public() who do NOT need to be validated by that guard.
+
+Metadata can be accessed by having the Reflector class injected in. Once again, see the api-key Guard example for injecting this reflector instance.
+
 ## Exception Filters
 
 The catch exception filters handles unhandled exceptions. By default, unhandled exceptions are displayed as a Error 500 with a default message. This is why we usually throw a HttpException. However, if something unexpected crashes, ExceptionFilters allow us control.
+
+When used as a decorator, it should be marked by the @Catch() decorator
 
 We can generate a filter via running the CLI:
 
@@ -388,6 +398,18 @@ In our filters, we can do things such as use a logging service to track errors, 
 See src/common/filters/ for examples
 
 ## Pipes
+
+Pipes are invoked right before method call, receiving the parameters and gives the ability to transform the pipe.
+
+We can generate a guard via running the CLI:
+
+```
+nest g pipe common/pipes/parse-chain-id
+```
+
+These pipes receive a value of the currently processed argument, as well as its metadata. Whatever value is returned by this hook will be what is passed in as parameter.
+
+See src/common/pipes/parse-chain-id.pipe.ts to see an example of transforming a int into a ChainId enum value, and throwing if any non-valid chain id is selected
 
 ## Guards
 
@@ -404,6 +426,67 @@ These guards can be dependency injected, and return true or false on whether req
 See src/common/guards/api-key.guard.ts to see an example of guarding against requests that are to a private request without the apiKey
 
 ## Interceptors
+
+Interceptors add additional behaviour to existing code, without modifying the code itself.
+
+This allows us to:
+
+- Bind extra logic before or after method execution
+- Transform the result returned from a method
+- Transform an exception thrown by a method
+- Extend method behaviour
+- Override a method
+
+We can leverage these to create features such as caching/memoization
+
+We can generate an interceptor via running the CLI:
+
+```
+nest g interceptor common/interceptors/wrap-response
+```
+
+See src/common/interceptors/wrap-response.interceptors.ts for an example of an interceptor which is globally wrapping endpoint calls into the data property of an object, and appending the timestamp & server version number to the call
+
+Also see src/common/interceptors/timeout.interceptors.ts for an example of an interceptor which globally handles requests that take more than 3 seconds as timeout errors.
+
+## Middleware
+
+Middleware is not bound to any method through decorators. Rather, its bound via a route path denoted by a string.
+
+These are setup in the module class itself via giving it a configure method like so:
+
+```ts
+export class CommonModule {
+  configure(consume: MiddlewareConsumer) {
+    consume.apply(CustomMiddleware).forRoutes('*');
+  }
+}
+```
+
+We can also exclude routes by adding the "exclude" method to the chain after apply()
+
+For an example, see src/common/middleware/logging.middleware.ts, where we log the time it took to create a response.
+
+This middleware could be expanded to determine which endpoints are taking too long and log those to a database or other logging tool, to help debug slow calls and what requests were made to make the calls slow.
+
+## Param Decorators
+
+First, for clarity, a Param decorator is NOT a re-implementation of @Param, its a conflict of naming. @Param, @Query, @Body, @Request, these are all Param decorators. A param decorator is a decorator that can go on any Controller's method parameter for any purpose.
+
+Param decorators are created va the createParamDecorator() function, and take in a callback. This callback takes data and a ExecutionContext. From that context we can get the request body to do our work.
+
+See src/common/decorators/protocol.decorator.ts for an example of a param decorator you can add to a endpoint which extracts what protocol was used during the request; likely "http"
+
+To use this decorator, add the following to any endpoint:
+
+```
+@Get()
+methodName(@Protocol() protocol: string) {
+  // protocol is the protocol (http/https/etc) used to access this endpoint
+}
+```
+
+Passing params to @Protocol will populate the "data" field withing our Protocol's callback, changing it from "unknown" to whatever type is passed in.
 
 ## Testing
 
@@ -425,6 +508,18 @@ src/common/filters/name.filter.spec.ts
 
 src/common/guards/name.guard.spec.ts
 
+### Interceptors
+
+src/common/interceptors/name.interceptor.spec.ts
+
+### Pipes
+
+src/common/pipes/name.pipe.spec.ts
+
+### Middleware
+
+src/common/middleware/name.middleware.spec.ts
+
 ### End-to-end
 
 test/name.e2e-spec.ts
@@ -438,3 +533,7 @@ If app.module.ts set "synchronize: true", your DB does NOT need to be setup. Pos
 Using ExceptionFilters, we can enhance our error handling to catch type Error 500's or raw strings to have better error handling
 
 Using guards we can create a private API key for non-public entrypoints. We can create a custom property @Public to attach to public Controller methods, to bypass this key requirement. This is similar to how Ryan did the guard for Jwt tokens, but something we could expand for private calls such as eth-contract task deployments or a more expansive IYK only dashboard
+
+Using Pipes, we can create pipes to validate non-standard input, such as validating only supported chain ids are passed to an endpoint, rather than just passing the number back
+
+Using Middleware, we can track which endpoints take too long to respond, and what the request parameters were to make the calls slow. This can help us debug things such as learn when our Alchemy pagination is slowing down our user experience or whatever else could be slow.
