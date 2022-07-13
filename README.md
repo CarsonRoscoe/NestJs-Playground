@@ -488,6 +488,39 @@ methodName(@Protocol() protocol: string) {
 
 Passing params to @Protocol will populate the "data" field withing our Protocol's callback, changing it from "unknown" to whatever type is passed in.
 
+## Swagger UI
+
+SwaggerUI allows us to generate a OpenAPI page for interacting with our endpoints.
+
+We set it up during bootstrapping via:
+
+```ts
+const options = new DocumentBuilder()
+  .setTitle('My Playground')
+  .setDescription('To learn NestJS')
+  .setVersion('1.0')
+  .build();
+const document = SwaggerModule.createDocument(app, options);
+SwaggerModule.setup('api', app, document);
+```
+
+By default, most information is missing, such as request structure, response structure and authentication.
+
+We can generate most of this information adding the "@nestjs/swagger/plugin" to our nest-cWithouli.json's compilerOptions' plugins'
+
+Without this plugin, we would need to add decorators for every piece of information, between every DTO, every entity, every parameters and every return. This plugin will do most of the heavy lifting, however some things will need to be adjusted. We are still able to add decorators to overwrite the plugin's behaviour if needed.
+
+**Tweaks after plugin**
+PartialType DTO's will have no data listed. To fix this, we must change the import for PartialType to instead come from @nestjs/swagger rather than @nestjs/mapped-types
+
+To add descriptions & example data to our DTO's, we can use the @ApiProperty decorator on our properties to add more information, such as descriptions. For example, see the create-coffee.dto.ts for an example of adding descriptions and example values.
+
+To add descriptions of possible responses, we can use the @ApiResponse or other @ApiXResponse decorator's on our methods. For example, see the MiscController's teapot endpoint where we add a description to the potential exception. Adding a response overrides any detected ones with the same status code, and is best used for delcaring possible exceptions that might be thrown that may not have been picked up, such as failed to authorize that was thrown by a guard.
+
+### Tags
+
+A way to group resources together in Swagger UI. To tag a grouping, just add the @ApiTags('groupName') to each Controller.
+
 ## Testing
 
 There are three levels of testing:
@@ -537,3 +570,5 @@ Using guards we can create a private API key for non-public entrypoints. We can 
 Using Pipes, we can create pipes to validate non-standard input, such as validating only supported chain ids are passed to an endpoint, rather than just passing the number back
 
 Using Middleware, we can track which endpoints take too long to respond, and what the request parameters were to make the calls slow. This can help us debug things such as learn when our Alchemy pagination is slowing down our user experience or whatever else could be slow.
+
+Using Swagger, we can create OpenAPI docs
