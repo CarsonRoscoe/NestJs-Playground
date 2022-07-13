@@ -523,7 +523,190 @@ A way to group resources together in Swagger UI. To tag a grouping, just add the
 
 ## Testing
 
-There are three levels of testing:
+NestJs supports testing through jest for virtually every bit of our code.
+
+For unit tests, the files end with .spec.ts and should be in the same directory as the file being tested.
+
+For end-to-end tests, the files end with .e2e-spec.ts and are located in the dedicated test folder in the root directory.
+
+In order to run tests fast, NestJs runs tests in parallel, and organizes tests to run previously failed tests first, and then order them based on time.
+
+### Jest Commands
+
+```
+// Unique Commands
+npm run test # for unit tests
+npm run test:e2e # for end-to-end tests
+npm run test:cov # checks which lines of codes in our files are not being tested
+npm run test:watch # for unit tests that automatically re-run when code changes are detected
+
+// Specify tests
+npm run test ./src/services/coffee.service.ts # Tests ONLY the coffee service
+npm run test -- coffee.service # Runs coffee service & any building blocks used by the service, such as guards or pipes
+```
+
+### Testing Tips
+
+1. Ensure all providers are available when creating a testing module, however aim to most every single provider.
+
+2. When using TypeORM, the provider declared should use typeORM's getRepositoryToken(Entity), with useValue assigned with a valid mock.
+
+```ts
+{
+  provide: getRepositoryToken(Entity),
+  useValue: {
+    findOne: jest.fn((id: number) => new Entity(id))
+  }
+}
+```
+
+3. When determining test coverage, use your mocks! Every branch in the original file must be a branch handled in the mock, and be tested against.
+
+4. As describe() calls can be nested, we can leverage this to organize our tests.
+
+For best practices, we organize into a three tier hierarchy:
+-describe('endpoint/method')
+--describe('the case being tested)
+---it('should do something')
+--describe('alternate path to test')
+---it('should do something')
+
+For example, this is taken from the coffees.service when testing the findOne method
+
+```ts
+describe('findOne', () => {
+  describe('when coffee with ID exists', () => {
+    it('should return the coffee object', async () => {
+      coffeeRepository.findOne.mockReturnValue({});
+      expect(await service.findOne('1')).toEqual({});
+    });
+  });
+  describe('when no coffee exists for a ID', () => {
+    it('should throw', async () => {
+      coffeeRepository.findOne.mockReturnValue(undefined);
+      try {
+        await service.findOne('1');
+      } catch (e) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect(e.message).toEqual(`Coffee 1 not found`);
+      }
+    });
+  });
+});
+```
+
+This also organizes the output of our test suite, which is very nice once you have a large codebase with multiple tests.
+
+6. Leverage jest.fn()
+
+With jest.fn() being used by our mocks, we have an array of tools we can utilize.
+
+First and foremost, when calling these functions, we can access the property and add .mockReturnValue(value), among other similarily named functions. This lets us change the behaviour of the next call on that function. By leveraging this, we often don't even need to create an implementation. We just need our mocks to match the structure of the dependency.
+
+Secondly, with jest.fn()'s we can spy on functions to analyze the behaviour. For example, given the aboves' test examples, we could add the line:
+
+```ts
+const findOneSpy = jest.spyOn(MockImplementation.prototype, 'findOne');
+await service.findOne('1');
+expect(findOneSpy).toBeCalledWith('1');
+```
+
+We now confirmed that the service did internally call findOne on our implementation.
+
+7. Relative equality
+
+As jest is based on jasmine, it comes out of the box with all of the jasmine testing suite.
+
+Through this, we can check for relative equality through the jest expect() function using jasmine's containg functions.
+
+For example, say we have a dto that gets sent to a service for creating, and a db entity is returned. Presumably, this dto is a partial implementation of the entity - that is, it's missing db fields such as id, or only has the foreign key while the full db entity has the referenced entities returned.
+
+We can do the comparison between a true entity and the dto like so:
+
+```ts
+const entity = this.someService.create(dto);
+const expectedEntity = jasmine.objectContaining({
+  ...dto,
+  foriegnKeyMapping: jasmine.arrayContaining(
+    dto.foreignKeyMapping.map((name) => jasmine.objectContaining({ name })),
+  ),
+});
+expect(entity).toEqual(expectedEntity);
+```
+
+Despite expectedEntity not being an entity, this will pass as jasmine allowed us to preserve the quality that we can check for
+
+8. Make mocks reusable
+
+To increase code-reuse, we can make mocks reusable. Thanks to the jest.fn() we use in our mocks, we can leverage these functions to mock return values easily. This allows us to focus on the structure of our mocks.
+
+For example, all TypeORM repositories share the same methods as one-another, and with jest.fn(), can have their returns mocked. This makes it a perfect candidate to be reused between multiple tests.
+
+See src/common/test/mock-repository.ts and coffees.service.spec.ts for a example of this
+
+9. If you are using a Transient or Request scoped provider, the standard module.get<CustomProvider>(CustomProvider) will return undefined. Instead, we just use the module.resolve function to access it.
+
+10. Tests are a wholly different environment from src, which has a couple quirks. The ones to know about are:
+
+a) In production/development, you can use absolute URLs for imports. In tests, everything is expected to use relative imports.
+
+b) In production/development, if the file name has capitals but the import is lower case, it will resolve the file properly. In tests, consistency is required.
+
+11. it.todo
+
+We can make reminders for tests to make via adding it.todo(descriotion) calls in our describe!
+
+### Unit Tests
+
+Tests each individual function behaves the way expected. We frequently mock every or nearly every dependency injected into the file, and just test that the function did what it was expected to do.
+
+As a metric for how granular we should be, the best practice is to aim that every test should not fail because any dependency failed. Failures through dependencies are a tell sign that the code was relying on the dependency, and that dependency should have been mocked to do no logic other than return what the caller NEEDS.
+
+### End-to-end Tests
+
+End-to-end tests are structured very similarily to the Unit Test suites, however have more available to use.
+
+First, after compiling the module, we run module.createNestApplication() to turn build a full Nest application. This is a light application compared to our full production environment, since it's both leveraging the TestingModule and also only contains whatever modules were imported. However, this is still heavy compared to Unit Tests.
+
+Secondly, we use the supertest package to create real http requests that we can feed into this test app. This allows us to hit real endpoints with real data, and assert the expected returns and behaviour.
+
+e.g.
+
+```ts
+request(app.getHttpServer())
+  .get(entrypointPath)
+  .set(headerKey, value)
+  .expect(statusCode)
+  .expect(returnedResponse);
+```
+
+Since end-to-end tests effectively run the full application, we may need to run code cleanup, such as shutting down a db connection. Do invoke the shutdown, add this afterAll in the end-to-end test's describe
+
+```ts
+afterAll(() => {
+  app.close();
+});
+```
+
+#### Databases
+
+Databases are a challenge for end-to-end tests. We have two solutions:
+
+1. Mock every TypeORM repository, which gives us full flexibility, but is time consuming, and makes testing queries impossible
+
+2. Use an in-memory database, where we don't have to mock anything.
+
+3. Use a testing database, which is the most "real" test we can do. This adds complexitiy and overhead, however is recommended as the best practice.
+
+As we follow best practices here, we went with ption 3. In our docker-compose.yml, we added a test-db service that uses a separate port, and in package.json added a pretest and posttest commands for docker composing up and down our database. This allows our tests to connect to this database.
+
+When tests connect, they should set synchronize, which allows our Entities to drive the database schema. By doing this, we do not need to worry about database versions or migrations.
+
+See coffees.e2e-spec.ts for how we configured this connection.
+
+### Jest Utilities
+
+### Best Practices
 
 ### Services
 
@@ -560,8 +743,6 @@ test/name.e2e-spec.ts
 ## Misc IYK TODO Notes
 
 If app.module.ts set "autoLoadEntities: true", it does NOT need to import each entity. Only the submodule needs to import
-
-If app.module.ts set "synchronize: true", your DB does NOT need to be setup. Postgres tables will be instantiated or updated based on the Entities descriptions. This is a development only feature
 
 Using ExceptionFilters, we can enhance our error handling to catch type Error 500's or raw strings to have better error handling
 

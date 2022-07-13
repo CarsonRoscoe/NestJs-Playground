@@ -1,5 +1,5 @@
-import { Coffee } from 'src/coffees/entities/coffee.entity';
-import { Flavour } from 'src/coffees/entities/flavour.entity';
+import { Coffee } from './src/coffees/entities/coffee.entity';
+import { Flavour } from './src/coffees/entities/flavour.entity';
 import { DataSource } from 'typeorm';
 
 export default new DataSource({

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ChainIds } from 'src/common/constants/ChainIds';
+import { ChainIds } from '../common/constants/ChainIds';
 
 @Injectable()
 export class ChainsService {
