@@ -27,7 +27,9 @@ describe('ChainsService', () => {
         expect(false);
       } catch (e) {
         expect(e).toBeInstanceOf(TypeError);
-        expect(e.message).toEqual("Cannot read property '0' of undefined");
+        expect(e.message).toEqual(
+          "Cannot read properties of undefined (reading '0')",
+        );
       }
     });
   });
