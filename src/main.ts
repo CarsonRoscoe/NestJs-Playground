@@ -6,9 +6,16 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { WrapResponseInterceptor } from './common/interceptors/wrap-response.interceptor';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter(),
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // Unwanted properties are removed from a dto

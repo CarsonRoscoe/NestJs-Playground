@@ -81,7 +81,7 @@ describe('AppController (e2e)', () => {
   it.todo('Update one [PATCH /:id]');
   it.todo('Delete one [DELETE /:id]');
 
-  afterAll(() => {
-    app.close();
+  afterAll(async () => {
+    await app.close();
   });
 });
