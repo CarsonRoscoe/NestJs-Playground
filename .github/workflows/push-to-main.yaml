@@ -34,7 +34,7 @@ jobs:
         run: npm install
 
       - name: Run Unit Test
-        run: npm run test
+        run: API_KEY=env.API_KEY npm run test
 
       - name: Run e2e Test
         run: npm run test:e2e
