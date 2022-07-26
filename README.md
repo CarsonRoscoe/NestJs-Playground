@@ -753,3 +753,119 @@ Using Pipes, we can create pipes to validate non-standard input, such as validat
 Using Middleware, we can track which endpoints take too long to respond, and what the request parameters were to make the calls slow. This can help us debug things such as learn when our Alchemy pagination is slowing down our user experience or whatever else could be slow.
 
 Using Swagger, we can create OpenAPI docs
+
+# Clean Code Guide
+
+This is a guide to intentional, cared for clean code.
+
+## High-Level Philosophy
+
+1. Follow standard conventions.
+
+2. Keep it simple. Reduce complexity wherever possible.
+
+3. Leave the campground cleaner than you found it.
+
+4. Broken windows show a lack of care, and un-cared for code invites future contributors to not care. By starting clean, it's easier for future contributors to keep it clean and follow your lead.
+
+5. More time is spent reading code than writing it - at least a 10:1 ratio. Therefore, creating clean code that is easy to read and understand will save you more time in the future than you realize. It's not just about how hard it is to add to the code in the future, it's also saving time when future-you has to re-read it when remembering how to interact with it, how its called, how it calls things, etc.
+
+6. Optimize code early without adding complexity.
+   That is, don't over-optimize, creating extra caches or nwe concepts. But put thought into your loops, look at who calls it, look at what you're calling. Make sure it's _good_ code before its commited. If another developer sees this code and tries to logic it out, there shouldnt be any easy obvious optimizations, as every time a developer touches it, we risk the code getting worse.
+
+7. The code should be elegant, and read like a graphic novel. It should not be a puzzle to resolve what was being done. A developer should be able to look at it, and it paints a picture in their head of how it flows. It should not strain the brain to understand, it should be _obvious_ what it is doing, and build up to a climax where it elegantly comes together.
+
+## Naming
+
+1. Names should reveal intent
+
+2. Class names should emphasize a noun, while functions should emphasize a verb.
+
+For example, Student is a noun. If we need to add more context to students, it should never be "WritingTestStudent" or anything with a verb-first, it should be "StudentThatWritesTests" where it's noun-first. The ONLY exception is it MAY be adjective-first if that is more readeable, but NEVER verb first.
+
+Likewise, if a function exists for this student to write a test, it should start with that verb, write. If we need to further explain, it should be writeTest rather than testGetsWritten or something that puts the noun first. For functions, we start with a verb, and then add nouns/adjectives to describe the action further. For examples, writeTest, writeExam, writeSAT, writeSATInPen, etc. The only exception is it MAY be adjective first if that is more readeable, but NEVER noun first.
+
+3. Names should avoid disinformation. If something LOOKS like it returns one thing but returns another, or something LOOKS like it does one thing but does not, the name should be changed.
+
+4. Make meaningful distinctions. It's better to make edge-cases throughly explained, than to follow a convention. For example, if in a Polymorphic design, most implementations have an "add" but one case is better described as "append", the second case should NOT call it "add" for the sake of following convention. Or if most implementations have a "connect" but one child is in-memory and does not need to connect to anything external, it should not have "connect" create the in-memory mapping. You should work to find a way to describe what is actually happening, even if it means pushing things our of the parents that appeared common at first and creating interfacts for these different behaviours that the children can selectively implement.
+
+5. Names should be pronounceable. There should be no weird acronyms that future developers must learn. The name should make sense when said outloud in a sentance, as programming is a social activity.
+
+6. Names should be searcheable, even if achieving this makes the names longer. If a function is named "catch", and you searched the repo for it, you will get more results than appropriate. However, if you name something "handleWeb3Errors", you would only find what you are looking for in the search.
+
+7. Avoid all encodings when using modern languages & IDEs. Be concise.
+
+For example, the m\_ prefix used to be used to denote a member variable. These types of encoding are no longer necessary with modern tooling.
+
+Same with interfaces, traditionally you would have a IDatabase and a Database implementation. You should not have an interface prefixed with the letter i, instead it should just be Database. If anything, the implementation should have the extra information, such as a Database interface with a SQLiteDatabase implementation.
+
+8. Avoid mental mappings. A poorly-named shorthand variable such as "data" should not be set to the result of a db query or REST request once set to a local variable. You should not have to remember that data is a object that contains an array of Phygitals. The ONLY exception to this is the traditional i/j/k indexes for forloops, as that is a standard convention. Every other case, the variables should be self-explanetory.
+
+9. Pick one word per concept. Back to the student example, StudentData and StudentInfo would be poor class names for two reasons, but for this point, the reason is because there is more than one word to describe the fact that it's a Student object. If we had to add more information, such as the student is a senior, than it could be SeniorStudent. But we still keep it at one word per concept.
+
+There are two exceptions; first is words that are not a noun, verb or adjective, that simply make the name read better, such as words like "with" or "who". These are allowed as they do not add a second word to a concept, they just make it more readeable when read outloud in a conversation.
+
+The second exception is if these extra words have meaning in your conventions. For example, "Data" and "Info" mean the same thing are are poor names within the context of a NestJS API. However, StudentEntity, StudentDTO and StudentBO have clearly defined meaning in NestJS, where the Entity postfix means the object came from/is going into TypeORM, a DTO postfix means the object came from a endpoint's body, and BO might be our own convention to mean our code created it to organized data between our controller to our service and back.
+
+10. Avoid multiple words that share the same meaning. Back to the StudentData vs StudentInfo example, the second reason this is bad naming is that, as we said, these mean the same thing. If there is no extra meaning from our conventions, than Data and Info just meant he same thing, and as Student is a class, it naturally already holds data/info. Therefore, it's best to remove Data/Info from the name and just call it "Student". We don't want to have multiple classes whose meaning sounds the same, confusing future developers on what the distinction is.
+
+11. Use Solution Domain Names first. If there is a computer science term or internal term your developers use to describe something, that is the first choice of names. For example, if our programmers called something "Phygitals" but our customers call them "Phygi-Digitals", our code should reflect our solution domain name, phygital.
+
+12. Use Problem Domain Names second. If there is not a computer science nor internal developer term for what is being described, the second best choice is what our consumers or business team members would call it. For example, if we need to call something a NFT, but for whatever reason our solution domain names such as ERC721/ERC1155/POAP/Guestbook/Phygital would be innapropriate (such as a database table that tries to use all of them), the problem domain name of "NFT" or "Token" may be an appropriate problem domain name to use. That is much better than creating a new term for the sake of this one use case.
+
+13. Add meaningful context. The terms "firstName", "lastName", "street", "city", "state", "zipCode" might logically make sense when the variables are side-by-side, however out of context, something like "state" might not appear to be a part of an address. If some React component shows the state, the code might read like it's using a second meaning for that word (perhaps whether the input is valid or not might be another meaning behind "state").
+
+In these cases, adding context is important. This could be as simple as calling them "addressState", "addressCity", etc. so it reads that it's part of an address, or be further taken to create an "Address" class so even the compiler understands the grouping of these variables.
+
+14. Don't add gratuitous context, meaning, don't add so much context that it ruins the ability to search or read names easily. If LeasedTag and OwnedTag are used in the Phygitals module, they should not be called PhygitalsModuleLeasedTag and PhygitalsModuleOwnedTag. Yes, that does give more context, but to a fault. First, this can lead to code duplication when a developer is working in a NFTModule and wants to reference LeasedTag - they may assume LeasedTag is unique to PhygitalsModule and they must make their own. Second, it makes searching for these variables very diffucult, as adding PhygitalsModule to every class in that module creates so much noise, it loses it's meaning. Keep is simple and straight forward.
+
+## Functions
+
+1. Functions should be small! Ideally, they should be 1-4 lines of code. If they reach 20 lines of code, you must have a really good reason to do so.
+
+2. Functions should do ONE thing. If they do more than one thing, those parts should be extracted, and consider being renamed into something that describes the total work being done. For example, if "CreateUser" reads data from fields, composes a UserEntity and uploads it to the database, that's three things. Each of those steps should be extracted into their own methods (ReadUserFields, CreateUserEntity, UploadUser)
+
+3. There should only be ONE level of abstraction per function. For example, in NestJS, Controllers calling Services is one level of abstraction away, so calling multiple services is good. However, Controllers should not call our API folder, as that is a level deeper that should be called by our Services. Mixing these concepts gets confusing, and once done, leads to future contributors to continue mixing these concepts.
+
+4. Reading code top to bottom. Our classes and files should be structured as best possible so it can be read top-down. Constants at the top of the file where they first get executed, constructors at the top of a class where it first gets instantiated, variables surrounding the contructor where they first get setup, public functions below the constructor where the entrypoints get called, private functions below the public ones who get called by the public functions. You should not have to go back and forth from scrolling down and up to read the code, just read down.
+
+5. Prefer polmorphism to switch cases. Generally, the only switch case that should exist is the one that creates these Polymorphic entities. Otherwise, if each method needs to do the switch statements, every time a item is added to this statement, it must be added to many functions/files. Whereas if it's Polymorphic, a new class must be created and a single code change on the single switch statement must occur. This reduces the impact of future additions.
+
+6. Function names should be descriptive, even if it makes them long.
+
+7. Functions should have zero to three arguments, anymore is a code smell.
+
+8. Flags/boolean arguments are a sign that the function likely is doing more than one thing.
+
+9. It's OKAY for multiple arguments beyond 3 IF the 3rd and onward effectively are a list. For example, consider anything that takes args at the end to count as one argument.
+
+10. It's encourgaged to group multiple arguments into objects. It is not creating to group chainId/chainName/explorer into a Chain object.
+
+11. Be mindful of similarly-themed parameters and their ordering. Consider assert(expected, actual). It's VERY EASY to mix those up, and put the expected value where equals is and vice versa. A better name might be assertExpectedEqualsActual. It might be longer, but if order matters, describe the order.
+
+12. Functions should have NO SIDE EFFECTS. They should do what they say. Going back to our "CreateUser" which uploads to db example in point #2, on top of extracting the work, that function should be renamed in a way that explains a db upload occurs. It should be something more akin to "UploadUserFromFieldsToDatabase". Any effect that occurs that is not described by the function name is a side effect, and is where most of our bugs will hide.
+
+13. Functions should either do something or answer something, but not both. Similar to how Solidity separates Views from executable functions. A "set" function should not return what was set, nor return that a set was successful.
+
+14. Functions should throw exceptions rather than return error codes. Returning a error code encourages a `if (function() == E_OK)` pattern where a function call is used as a expression. This leads to deeply nested structures, and readeable code minimizes nesting.
+
+15. Try/catch blocks are ugly and are their own thing. As such, following the "functions should do one thing" principle, these try/catches should be their own function that handle error handling. So if a Try/catch/finally is used, the "try" should be the first line of a function, and "finally" should be the end of the function. There should be no code before or after the try/catch/finally.
+    Also, the code executed in the try should be extracted to its own private function. The try/catch's one thing is error handling what occurs in that function, and that extracted functions one thing is doing the thing we are trying.
+
+16. Don't repeat yourself. Avoid duplicate code as much as possible, extracting logic into small private functions freely if that work is re-done by many functions.
+
+For example, if a class does db work and needs to setup & teardown anything on each function, that setup and teardown should be extracted to their own setup & teardown private methods. These should then be at the start and end of every other function. Even if setup & teardown is just a couple lines of code, we should extract them, as they are duplicates, and we don't repeat ourselves.
+
+17. Every block of code in a function should have one entry and one exit. There should only be one return, we should aim for no breaks or continues in loops, and NEVER a goto. The only exception is if the function is so small that multiple returns actually improves code clarity, such as:
+
+```ts
+if (authenticated) {
+  return resp(200);
+} else {
+  return resp(404);
+}
+```
+
+18. How do you actually write this?
+    Don't start by extracting things before it's proven to be needed. Start by writing the ugly, bloated, long code with too many parameters, until you have what works and know exactly which parameters ended up being needed, and what setup/teardown was needed.
+    However, before you commit, take the time to care for the function. Once it's ready, start extracting, start grouping parameters into classes. Do the work first the way we're used to, and immediately clean up afterwards.
