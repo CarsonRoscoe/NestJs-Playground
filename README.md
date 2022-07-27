@@ -869,3 +869,131 @@ if (authenticated) {
 18. How do you actually write this?
     Don't start by extracting things before it's proven to be needed. Start by writing the ugly, bloated, long code with too many parameters, until you have what works and know exactly which parameters ended up being needed, and what setup/teardown was needed.
     However, before you commit, take the time to care for the function. Once it's ready, start extracting, start grouping parameters into classes. Do the work first the way we're used to, and immediately clean up afterwards.
+
+## Comments
+
+1. Comments do not make up for bad code
+
+2. Comments are a failure to write expressive code
+
+3. Comments lie. Over time their meaning gets lost, the code changes, and they degrade until they are just a lie.
+
+4. The code is the only true source of truth.
+
+5. If you find yourself writing a comment, first think hard about why we need the comment. If it's to explain some external knowledge, github source, documentation fact, sure. But if it's just to explain what a couple of lines is doing, consider if you can refactor those lines to tell their own story more cleanly.
+
+6. Good comments have information that directly pertains to the code below it, explains intent, warns of consequences, and clarifies
+
+7. TODO comments are good as long as the task cannot be done right now - it's a future note. It should not be used to remind you of what you have to do in your current PR, or a way to tell other developers to look at something. They must have good reason for existing as a TODO rather than a Discord dm or Linear Ticket.
+
+8. Public APIs are the only time a large Javadoc Style comment is necessary. Even then, comments lie over time, and lying to your users is not cool. As the source code is the source of truth, try to have as many documentation as possible generated (specifically with the OpenAPI plugin in this repo) to minimize lying, and only explicitly document what could not be generated.
+
+9. Bad comments are unclear, redundant, misleading, and noisy.
+
+10. Don't use a comment when you can extract logic into a well named function or variable. For example, if we had the code:
+
+```ts
+// Confirms that the chainId passed in is one that our app supports
+if (ChainId > 0 && SupportedChainIds.includes(ChainId)) {
+}
+```
+
+instead consider extracting that to a variable:
+
+```ts
+let chainIdIsSupported = ChainId > 0 && SupporedChainIds.includes(ChainId);
+if (chainIdIsSupported) {
+}
+```
+
+11. Comments that are used to explain when a block of logic ends is a code smell that the function is too large
+
+12. Commented out code is bad.
+    a) If it's already in source control, we can get it again, so just delete it
+    b) If it's never been checked in and we are writing this function for the first time, why is the code commented out? If it's to reference something we might need later, write a good TODO comment that has the important snippets of code in it so it's clear that that is the intention
+
+Commented out code tends to lead to code that other developers are afraid to delete, and linger forever. It's not obvious once they become outdated, so other developers won't naturally update them like they might comments whose surrounding code is changing. This makes commented out code very scary.
+
+13. Comments should not have too much information. Just enough to say what needs to be said.
+
+## Formating
+
+1. The entire team should be using the same formatting - yay prettier!
+
+2. Formatting should be consistent and create trust that every file can be read in the same way.
+
+3. Code should be read top to bottom, in the order of execution, with constants at the top, variables near the constructor, constructor above any other methods, public methods below it, private below the publics
+
+4. When methods call each other, they should have the caller above the callee if possible. It should read:
+
+```ts
+class GoodName {
+  CONSTANTS;
+  memberVariables;
+
+  constructor() {}
+  public aCallsB() {}
+  private bCallsC() {}
+  private c() {}
+}
+```
+
+5. When writing blocks of code, new lines should separate concepts. If a few lines are coupled, keep them together so it's clear that they are one concept. Once it changes, add a new line between them and the next concept.
+
+6. Horizonal space should not get too wide. Author recommends 120 character lines, but that's up to us
+
+7. Despite 120 characters being okay, shorter lines are ideal. Most lines should be under 40 characters.
+
+## Objects & Data Structures
+
+1. Objects encapsulate data, hiding their inners. They have public methods to interact with their data in a abstract way which does not show any information about the implementation.
+
+2. Data structures have no methods, and expose all their inners via public variables or getters/setters.
+
+3. Hybrids are ugly, avoid objects with public variables when possible
+
+4. The Law of Demeter states that functions should only call their member variables, local variables, call objects created by them, or call objects injected to them
+
+For example, a function who chains a call through ctx.getThing().doThing().invokeOnResult() to do work on that result knows too much information. This is a smell. Likely, what we're trying to do to the result should be extracted to be another method on ctx that does the work on the objects it knows about.
+
+This rule does not apply to structures, as structures being fully public makes it okay to know about its inners, thus not violating this law.
+
+## Error Handling
+
+1. If error handling obscures logic, it's wrong.
+
+2. Clean code is both readeable and robust. These are not conflicting goals.
+
+3. Use exceptions rather than return codes. Error codes clutter the caller, forcing the caller to immediately handle return codes after calling. They also encourage nesting functions into expressions to put in if() statements, creating unnecesary nesting.
+
+Return codes also force the caller to do two things - both make a call, AND handle return codes. Exceptions, on the other hand, let callers stay lean, working optimistically on the returned result. The error handling of the exception can then be extracted to a second method which calls the first one in it's try, allowing us to create two methods that each do one thing, rather than one method that does two things.
+
+4. Write the try/catch/finally first, and then the implementation. Plan accordingly what to do when a fail occurs, and what exceptions are to be thrown ahead of time. Then extract the logic that would go in that try into a new method.
+
+5. When writing tests, start by testing the exception handling, and prove it fails. THEN work on the expected behaviour on success, and then implement said behaviour.
+
+6. Each exception thrown should provide enough context to describe the source and location of the error. Error messages should be informative for developers. If the UI hides the error message so users do not learn the details of what is thrown, make sure to log the error so the developers have a way to find the information.
+
+7. It is best practice to wrap 3rd party API's, catch exceptions in our wrapper, and throw a new common exception. This allows three main benefits:
+
+a) The calling code now does not need multiple catch statements if they try/catch/finally, they can except a single exception type to be thrown. This reduces duplication.
+
+b) If the API call ever changes in a future update and breaks our code, we fix it in one place.
+
+c) We can now replace the API call with a different tool in the future without having to rewrite all calls.
+
+8. A common exception, as described in #6, is usually the best practice for MOST use cases. The exception is if you want certain exceptions to be handled while others pass through. For example, we might want all programmer errors such as undefined errors to be generalized and pass through our regular flow, but specifically want a Database Connection exception to be handled differently and perform some secondary action. This is a case where creating a Exception class for the database connection failure makes sense. However, if we did not want to handle that exception differently, using a common exception is recommended.
+
+9. Special Case Pattern can be used to reduce the number of exceptions. Rather than handling special cases in the catch of exceptions, create a object whose internal logic will reason out if it is a special case or not, and return the appropriate response. This cleans up the code and reduces the number of catches.
+
+10. Don't return null or undefined.
+
+Returning null creates work for the caller, as now the caller is expected to null check everywhere, or risk throwing undefined exceptions.
+
+Ideally, we should return special case objects. Lists are easy, as we can already return a empty list rather than null if we can't find or can't access what we are looking for. Others are hard, such as fetching a single entity. If possible, returning a empty object is usually better than returning null, especially if that empty object has a way to check if it's empty, so callers can check if they need to in a controlled way.
+
+It is also often better to throw a exception than return null. Yes, it might force the caller to wrap it in a try/catch, but if the object returned is going to be used, it's best to learn early and gracefully fail than to throw a null exception later.
+
+11. Don't pass null
+
+Unless a paramter is explicitly optional, don't pass null in for any values. We often assume that when we call a function, it's possible that the return type is null. However, if we expect a parameter, we always assume it's a valid value. On the flip side, if you find yourselves null checking parameter values that are not optional, that is a code smell in itself.
