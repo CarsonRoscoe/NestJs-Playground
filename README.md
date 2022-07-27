@@ -996,4 +996,55 @@ It is also often better to throw a exception than return null. Yes, it might for
 
 11. Don't pass null
 
-Unless a paramter is explicitly optional, don't pass null in for any values. We often assume that when we call a function, it's possible that the return type is null. However, if we expect a parameter, we always assume it's a valid value. On the flip side, if you find yourselves null checking parameter values that are not optional, that is a code smell in itself.
+Unless a parameter is explicitly optional, don't pass null in for any values. We often assume that when we call a function, it's possible that the return type is null. However, if we expect a parameter, we always assume it's a valid value. On the flip side, if you find yourselves null checking parameter values that are not optional, that is a code smell in itself.
+
+## Boundaries
+
+1. When using third party libraries, take care of the boundary between your code to their code. Often, these tools will have functionality that is beyond what you desire out of your need. For example, you may have a map that only ever grows, however passing that map around can lead to other code calling the clear method. If you don't want to expose the risk of these libraries to other parts of the codebase, keep its usage in a single class or a few closely related classes, and only expose the high level interactions with it to the outside system, rather than expose the library itself.
+
+2. Learning Tests
+
+A learning test is when you write tests that test these libraries, strictly for the functionality you intend on using. These are benefitial for a number of ways.
+
+First, you have to learn the library anyway, so doing it in a sandboxed test allows for rapid learning.
+
+Second, you get to learn things you did not know about it, such as setup, nuances, dto's, etc.
+
+Third, you now have a way to test future updates to the library. Rather than reading if a change from v4 to v5 would break your code, you can do the upgrade and run the tests. If they pass, you can be confident in the upgrade. If they fail, you can now learn how to fix them before you work on the main codebase.
+
+3. Using future code
+
+Another type of boundary to consider is the unknown. If you are creating a system and have not yet decided which API to use, or are waiting on another team member to create this code, you can theorize what you want the boundary to be with your ideal API. What functions you want to call, what payloads you have to give, what configurations you may need. You can design your ideal interface and use a dummy version of that.
+
+Then, once that code is ready, you can create a adapter to conform to your ideal API. This has the added benefit of ending with a wrapped API, which is already the recommended practice.
+
+## Unit Tests
+
+1. Tests are just as important as the rest of the code base
+
+2. Tests give your code more flexibility. They allow you to feel confident changing existing code without breaking behaviour, which is freedom.
+
+3. Tests should be simple, and isolate the specific things being tested
+
+4. Test setup should be minimal with no dependencies that are not mocked.
+
+5. Tests should have minimal asserts. The asserts they have should prove that the intention was completed, without testing that internal state is a specific way. This is because too many asserts that know implementation details make tests brittle, which leads to more work when we update the tested code.
+
+6. Tests should be written to fail before writing your methods, and call the expected methods. A lack of method exitsting leading to compilation errors is a valid fail.
+
+7. Tests should follow proper coding conventions, but are allowed to break things such as encapsulation and other rules in order to be more proper.
+
+8. Code is done once the tests pass. If coding is not done once passing, it means you didn't plan out your tests thouroughly enough
+
+9. Tests should follow F.I.R.S.T. principles
+   **Fast** enough that developers will not be discouraged from running them frequently
+   **Independent** of one another. No test should setup state for the next. Every one should be run independently. Before/BeforeEach/After/AfterEach should isolate any setup that is shared between tests.
+   **Repeatable** in every environment, from your laptop without internet, to github actions, dev environments and prod environments.
+   **Self-Validating** where they either "pass" or "fail". You should never have to read a log file or compare outputs to tell whether a test succeeded or not.
+   **Timely**, written just before production code. Not after production code, and not before acceptance criteria is approved.
+
+10. Tests should test a single concept per test. Long tests should be broken up so each test tests a separate concept of the longer flow.
+
+11. It is encouraged to write helper functions & classes for your tests, known as a "testing library", which has domain specific language to your codebase. If a group of work is to be called in multiple tests, it's encouraged to create functions that do this work. The naming of these functions should be long and describe what is being done. For example, `uploadEntityToTheDatabase(entity)` is a valid helper function for a test suite that needs to upload various entities. However, these functions should be 1-4 lines long, no more than 20, and still encapsulate a single concept.
+
+12. If tests makes up 50% of your codebase, that is a good sign. Testing should be thourough.
